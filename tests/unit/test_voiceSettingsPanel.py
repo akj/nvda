@@ -13,7 +13,7 @@ from unittest.mock import patch
 import config
 import synthDriverHandler
 import wx
-from gui.settingsDialogs import VoiceSettingsPanel
+from gui.settingsDialogs import SpeechSettingsPanel
 from synthDriverHandler import SynthDriver, VoiceInfo
 
 
@@ -70,7 +70,8 @@ class Test_VoiceSettingsPanel_synthChange(unittest.TestCase):
 		)
 		speechDictPatcher.start()
 		self.addCleanup(speechDictPatcher.stop)
-		self.panel = VoiceSettingsPanel(self.frame)
+		self.speechPanel = SpeechSettingsPanel(self.frame)
+		self.panel = self.speechPanel.voicePanel
 
 	def tearDown(self):
 		synthDriverHandler._curSynth = self._origSynth
@@ -110,3 +111,9 @@ class Test_VoiceSettingsPanel_synthChange(unittest.TestCase):
 			self.panel.autoLanguageSwitchingCheckbox.GetPosition().y,
 			self.panel.rateSlider.GetPosition().y,
 		)
+
+	def test_synthNameAfterSynthDies(self):
+		"""The synthesizer name must match the rebuilt voice settings after a config reload."""
+		synthDriverHandler._curSynth = _FakeSynthWithVariant()
+		self.app.ProcessPendingEvents()
+		self.assertEqual(self.speechPanel.synthNameCtrl.GetValue(), "Fake synth with variant")

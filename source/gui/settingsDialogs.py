@@ -1636,6 +1636,8 @@ class AutoSettingsMixin(metaclass=ABCMeta):
 		if self._currentSettingsRef() is not self.getSettings():
 			if gui._isDebug():
 				log.debug("refreshing panel")
+			focus = wx.Window.FindFocus()
+			hadFocus = focus is not None and self.IsDescendant(focus)
 			self.sizerDict.clear()
 			self.settingsSizer.Clear(delete_windows=True)
 			self._currentSettingsRef = weakref.ref(
@@ -1644,6 +1646,9 @@ class AutoSettingsMixin(metaclass=ABCMeta):
 			)
 			self.makeSettings(self.settingsSizer)
 			self.settingsSizer.Layout()
+			if hadFocus:
+				# The focused control was destroyed, so move focus to the new controls.
+				self.SetFocus()
 
 	def onPanelActivated(self):
 		"""Called after the panel has been activated
@@ -1665,6 +1670,11 @@ class VoiceSettingsPanel(AutoSettingsMixin, SettingsPanel):
 
 	def getSettings(self) -> AutoSettings:
 		return self.driver
+
+	def refreshGui(self):
+		super().refreshGui()
+		# The synth may have changed while the dialog is open, e.g. after reverting to saved configuration.
+		self.Parent.updateCurrentSynth()
 
 	def _getSettingControlHelpId(self, controlId: str) -> str:
 		standardSettings = [
