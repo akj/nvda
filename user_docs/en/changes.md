@@ -11,6 +11,7 @@
 
 * The magnifier now follows what is being read when navigating in math expressions. (#20321, @CyrilleB79)
 * Windows OneCore voices now support spelling functionality. (#8237, #13596, #15301)
+* Reverting to saved configuration or resetting to factory defaults now closes any open NVDA settings dialogs, discarding their unsaved changes. Previously, these dialogs kept showing, and could save, the old settings. (#6469, @akj)
 
 ### Bug Fixes
 

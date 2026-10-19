@@ -4563,6 +4563,7 @@ To save the settings manually at any time, choose the Save configuration item in
 If you ever make a mistake with your settings and need to revert back to the saved settings, choose the "revert to saved configuration" item in the NVDA menu.
 You can also reset your settings to their original factory defaults by choosing Reset Configuration To Factory Defaults, which is also found in the NVDA menu.
 After resetting, a dialog will appear allowing you to undo the reset and restore your previous configuration.
+Reverting or resetting the configuration closes any open NVDA settings dialogs, discarding changes you haven't saved in them.
 
 The following NVDA key commands are also useful:
 <!-- KC:beginInclude -->

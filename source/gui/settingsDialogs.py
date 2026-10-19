@@ -182,6 +182,20 @@ class SettingsDialog(
 		SettingsDialog._instances[obj] = cls.DialogState.CREATED
 		return obj
 
+	@classmethod
+	def _cancelConfigDialogs(cls) -> None:
+		"""Cancel open settings dialogs that edit the configuration, discarding their changes.
+		Used before the configuration is reset, as these dialogs show, and would save, the configuration being replaced.
+		Dialogs opened later, such as a synthesizer selection dialog opened from the settings dialog, are cancelled first.
+		"""
+		openDialogs = [
+			dialog
+			for dialog, state in SettingsDialog._instances.items()
+			if state is cls.DialogState.CREATED and dialog and dialog.shouldSuspendConfigProfileTriggers
+		]
+		for dialog in reversed(openDialogs):
+			dialog.ProcessEvent(wx.CommandEvent(wx.wxEVT_BUTTON, wx.ID_CANCEL))
+
 	def _setInstanceDestroyedState(self):
 		# prevent race condition with object deletion
 		# prevent deletion of the object while we work on it.

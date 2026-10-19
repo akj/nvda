@@ -330,7 +330,10 @@ def resetConfiguration(factoryDefaults=False):
 	import mathPres
 	import textUtils._wordSeg
 	import _magnifier as magnifier
+	from gui.settingsDialogs import SettingsDialog
 
+	# Do this while speech and other subsystems are still running, as dialogs may use them to discard changes.
+	SettingsDialog._cancelConfigDialogs()
 	magnifier.terminate()
 	log.debug("Terminating vision")
 	vision.terminate()
