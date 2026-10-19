@@ -66,7 +66,9 @@ class Test_VoiceSettingsPanel_synthChange(unittest.TestCase):
 		# Speech dictionaries are not initialised in unit tests, but the panel needs at least one.
 		speechDictPatcher = patch(
 			"speechDictHandler.listAvailableSpeechDictDefinitions",
-			return_value=[SimpleNamespace(displayName="default", userVisible=True, enabled=True)],
+			return_value=[
+				SimpleNamespace(name="default", displayName="default", userVisible=True, enabled=True),
+			],
 		)
 		speechDictPatcher.start()
 		self.addCleanup(speechDictPatcher.stop)
@@ -112,8 +114,41 @@ class Test_VoiceSettingsPanel_synthChange(unittest.TestCase):
 			self.panel.rateSlider.GetPosition().y,
 		)
 
-	def test_synthNameAfterSynthDies(self):
-		"""The synthesizer name must match the rebuilt voice settings after a config reload."""
-		synthDriverHandler._curSynth = _FakeSynthWithVariant()
+	def _notifySynthChanged(self):
+		"""Announce the synth change as synthDriverHandler.setSynth does."""
+		synthDriverHandler.synthChanged.notify(
+			synth=synthDriverHandler._curSynth,
+			audioOutputDevice=None,
+			isFallback=False,
+		)
+
+	def test_refreshOnSynthChangedWhileOldSynthAlive(self):
+		"""The panel must show the new synth after a config reload, even if the old synth is not freed."""
+		self._switchSynth()
+		self._notifySynthChanged()
 		self.app.ProcessPendingEvents()
 		self.assertEqual(self.speechPanel.synthNameCtrl.GetValue(), "Fake synth with variant")
+		self.assertEqual(set(self.panel.sizerDict), {"variant", "rate"})
+
+	def test_saveAfterSynthChangedDuringSave(self):
+		"""Unsaved voice settings must be saved when another panel changes the synth first.
+		For example, the Audio panel reloads the synth when the output device changes.
+		"""
+		original = config.conf["speech"]["autoLanguageSwitching"]
+		self.addCleanup(config.conf["speech"].__setitem__, "autoLanguageSwitching", original)
+		self.panel.autoLanguageSwitchingCheckbox.SetValue(not original)
+		self._switchSynth()
+		self._notifySynthChanged()
+		self.speechPanel.onSave()
+		self.assertEqual(config.conf["speech"]["autoLanguageSwitching"], not original)
+
+	def test_focusMovesToNewControlsOnSynthChanged(self):
+		"""Focus must not be left on a destroyed control when the voice settings are rebuilt."""
+		self.frame.Show()
+		self.panel.rateSlider.SetFocus()
+		self.assertIs(wx.Window.FindFocus(), self.panel.rateSlider)
+		self._switchSynth()
+		self._notifySynthChanged()
+		self.app.ProcessPendingEvents()
+		# The first control of the rebuilt panel.
+		self.assertIs(wx.Window.FindFocus(), self.panel.variantList)

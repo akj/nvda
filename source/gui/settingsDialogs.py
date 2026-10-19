@@ -82,7 +82,7 @@ from config.configFlags import (
 	BrailleMode,
 )
 from logHandler import log
-from synthDriverHandler import SynthDriver, changeVoice, getSynth, getSynthList, setSynth
+from synthDriverHandler import SynthDriver, changeVoice, getSynth, getSynthList, setSynth, synthChanged
 from utils.displayString import DisplayStringEnum
 
 import gui
@@ -1219,6 +1219,23 @@ class SpeechSettingsPanel(SettingsPanel):
 
 		self.voicePanel = VoiceSettingsPanel(self)
 		settingsSizerHelper.addItem(self.voicePanel)
+		# Destroyed panels are skipped by the extension point, so there is no need to unregister.
+		synthChanged.register(self._onSynthChanged)
+
+	def _onSynthChanged(self, **kwargs):
+		# The synth can change while the dialog is open, e.g. when reverting to saved configuration.
+		# The previous synth may not be freed yet, so the voice panel's weakref can't be relied on to refresh.
+		self.updateCurrentSynth()
+		# Other panels can change the synth while the dialog is saving (e.g. a new audio output device),
+		# so rebuild later to keep the voice panel's unsaved values until it has saved them.
+		wx.CallAfter(self._refreshVoicePanel)
+
+	def _refreshVoicePanel(self):
+		if not self:
+			# The dialog was closed.
+			return
+		self.voicePanel.refreshGui()
+		self._sendLayoutUpdatedEvent()
 
 	def _enterTriggersOnChangeSynth(self, evt):
 		if evt.KeyCode == wx.WXK_RETURN:
@@ -1306,10 +1323,6 @@ class SynthesizerSelectionDialog(SettingsDialog):
 		tones.terminate()
 		tones.initialize()
 
-		if self.IsModal():
-			# Hack: we need to update the synth in our parent window before closing.
-			# Otherwise, NVDA will report the old synth even though the new synth is reflected visually.
-			self.Parent.updateCurrentSynth()
 		super().onOk(evt)
 
 
@@ -1648,7 +1661,7 @@ class AutoSettingsMixin(metaclass=ABCMeta):
 			self.settingsSizer.Layout()
 			if hadFocus:
 				# The focused control was destroyed, so move focus to the new controls.
-				self.SetFocus()
+				self.NavigateIn()
 
 	def onPanelActivated(self):
 		"""Called after the panel has been activated
@@ -1670,11 +1683,6 @@ class VoiceSettingsPanel(AutoSettingsMixin, SettingsPanel):
 
 	def getSettings(self) -> AutoSettings:
 		return self.driver
-
-	def refreshGui(self):
-		super().refreshGui()
-		# The synth may have changed while the dialog is open, e.g. after reverting to saved configuration.
-		self.Parent.updateCurrentSynth()
 
 	def _getSettingControlHelpId(self, controlId: str) -> str:
 		standardSettings = [
